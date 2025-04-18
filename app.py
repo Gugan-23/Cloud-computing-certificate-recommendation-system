@@ -10,7 +10,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
-from transformers import pipeline, GPT2LMHeadModel, GPT2Tokenizer
 
 # MongoDB setup
 client = MongoClient("mongodb+srv://vgugan16:gugan2004@cluster0.qyh1fuo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
@@ -117,14 +116,6 @@ def display_syntax(text):
     st.markdown(f"Polarity: `{polarity:.2f}` | Subjectivity: `{subjectivity:.2f}` → **{sentiment}**")
 
 # Load transformers
-@st.cache_resource
-def load_transformers():
-    classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-    gpt_tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-    gpt_model = GPT2LMHeadModel.from_pretrained("gpt2")
-    return classifier, gpt_model, gpt_tokenizer
-
-zero_shot, gpt_model, gpt_tokenizer = load_transformers()
 
 def remove_repeats(text):
     words = text.split()
@@ -132,11 +123,13 @@ def remove_repeats(text):
     return " ".join([word for word in words if not (word.lower() in seen or seen.add(word.lower()))])
 
 # Streamlit UI
+# Streamlit UI
 st.title("📚 Course Recommendation & NLP Assistant")
 
-tab1, tab2 = st.tabs(["🧠 Course Recommender", "💬 AI Suggestion Bot"])
+# Create tabs using radio buttons
+tab_option = st.radio("Choose a tab:", ["🧠 Course Recommender"])
 
-with tab1:
+if tab_option == "🧠 Course Recommender":
     st.subheader("Enter a topic you're interested in:")
     user_topic = st.text_input("Topic", placeholder="e.g. machine learning for healthcare")
 
@@ -156,23 +149,3 @@ with tab1:
                 save_to_mongo(user_topic, recs.to_dict("records"))
             else:
                 st.warning("No courses found for your input.")
-
-with tab2:
-    st.subheader("Ask your question for a Yes/No & explanation")
-    user_question = st.text_area("Enter your question:", height=100)
-    if st.button("Get AI Suggestion"):
-        if user_question:
-            labels = ["Yes", "No"]
-            result = zero_shot(user_question, labels)
-            answer = result['labels'][0]
-            confidence = result['scores'][0] * 100
-
-            prompt = f"{user_question} Answer: {answer}. Please briefly explain why this is the case."
-            input_ids = gpt_tokenizer.encode(prompt, return_tensors='pt')
-            output = gpt_model.generate(input_ids, max_length=150, do_sample=True, top_k=50, top_p=0.9, temperature=0.7)
-            explanation = gpt_tokenizer.decode(output[0], skip_special_tokens=True)
-            explanation = remove_repeats(explanation)
-
-            st.markdown(f"**Answer:** {answer} ({confidence:.2f}%)")
-            st.markdown(f"**Explanation:** {explanation}")
-
