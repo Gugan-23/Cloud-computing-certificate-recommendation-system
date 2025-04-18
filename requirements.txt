@@ -6,3 +6,5 @@ textblob
 pymongo
 scikit-learn
 transformers
+torch
+flask
